@@ -1,0 +1,309 @@
+detect_cycle.c
+////////////////////////////////////////////////////////////////////////
+#define UNVISITED -1
+bool *visited;
+int *ids, low, sccs;
+int *stack;
+node *stack;
+int id;
+int loop_index = 0;
+
+void dfs(int at, list *loops, bool hasloop, node **adjacencyList)
+{
+    low[at] = id++;
+    ids[at] = low[at];
+    stack.push(at);
+    visited[at] = true;
+    for (int i = 0; i < sizeof(adjacencyList[at] / sizeof(adjacencyList[at][0])); i++)
+    {
+        if (ids[i] == UNVISITED)
+        {
+            dfs(i, loops, &hasloop, , adjacencyList);
+        }
+        if (visited[i])
+        {
+            low[at] = min(low[at], low[i]);
+        }
+    }
+    if (ids[at] == low[at])
+    {
+        if(stack->size == 1){
+            int n = stack.pop(); 
+            visited[n] = false ; 
+            return ; 
+        }
+        while (0 < stack->size)
+        {
+            int n = stack.pop();
+            hasloop = true;
+            visited[n] = false;
+            if (adjacencyList[at][n].type == thread)
+            {
+                push(loops , adjacencyList[at][n].id);
+            }
+            if (n == at)
+            {
+                loop_index++;
+                break;
+            }
+        }
+    }
+    return;
+}
+
+void tarjan(Graph *graph)
+{
+    int loop_index = 0;
+    bool hasLoop = graph->hasloop;
+    list *loops = graph->loops;
+    node **adjList = graph->adjacencyList;
+    visited = (int *)mallaloc(length);
+    low = (int *)mallaloc(length);
+    sccs = (int *)mallaloc(length);
+    ids = (int *)mallaloc(length);
+    *visited = {false};
+    *ids = {UNVISITED};
+    id = 0;
+    for (int i = 0; i < length; i++)
+    {
+        if (ids[i] == UNVISITED)
+        {
+            dfs(i, loops, hasLoop, adjList);
+        }
+    }
+}
+----------------------------------------------------------------------
+Graph.h
+////////////////////////////////////////////////////////////////////////
+#define N 10000
+
+typedef enum{
+    thread , resource
+} Type;
+
+struct Node{
+    int id;
+    Type type;
+    struct Node* next;
+}
+
+struct list
+{
+  int data;
+  struct list *next;
+};
+
+void push(struct list** head_ref, int new_data);
+
+struct Graph{
+    struct Node* adjacency_lists[N];
+    bool hasLoop;
+    struct list* loops;
+}
+
+struct Graph* createGraph();
+void add_edge(struct Graph* graph, int tid , int lock_id, enum Type type);
+void delete_edge(struct Graph* graph, int tid , int lock_id);
+
+
+----------------------------------------------------------------------
+Graph.c
+////////////////////////////////////////////////////////////////////////
+#define N 10000
+
+void push(struct list** head_ref, int new_data)
+{
+    struct list* new_list = (struct list*) malloc(sizeof(struct list));
+    new_list->data  = new_data;
+    new_list->next = (*head_ref);
+    (*head_ref)    = new_list;
+}
+
+struct Graph* createGraph()
+{
+    struct Graph* graph = (struct Graph*)malloc(sizeof(struct Graph));
+    for (int i = 0; i < N; i++) {
+        graph->adjacency_lists[i] = (struct Node*)malloc(sizeof(struct Node));
+    }
+    return graph;
+}
+
+void add_edge(struct Graph* graph, int tid , int lock_id, enum Type type)
+{
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    newNode->id = lock_id;
+    newNode->type = type;
+    newNode->next = graph->adjacency_lists[tid];
+    graph->adjacency_lists[tid] = newNode;
+}
+
+void delete_edge(struct Graph* graph, int tid , int lock_id)
+{
+    struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    graph->adjacency_lists[tid] = newNode;
+}
+----------------------------------------------------------------------
+init.c
+/////////////////////////////////////////////////////////////////////
+int
+main (void)
+{
+.....
+  ///////////////////OUR_CHANGE----------------------------------------------------------------------
+  init_deadlock_detection();
+  ///////////////////OUR_CHANGE----------------------------------------------------------------------
+......
+}
+---------------------------------------------------------------------
+process.c
+---------------------------------------------------------------------
+process_exit (struct thread *cur) {...}
+//////////////////////////////////////////////////////////////////////
+recovery.h
+/////////////////////////////////////////////////////////////////////
+#define detection_frequency 100
+#define get_length(arr) (sizeof((arr)) / sizeof(arr[0]))
+struct Graph *graph;
+
+enum Type resource_type = resource;
+enum Type thread_type = thread;
+
+static struct thread *choose_victim(list* cycle);
+static void recover(list* cycles);
+static bool detect_deadlock();
+static void deadlock_detection_recovery();
+static void init_deadlock_detection();
+static void request_resources(int tid , int lock_id);
+static void receives_resources(int tid , int lock_id);
+static void frees_resource(int tid , int lock_id);
+
+
+---------------------------------------------------------------------
+recovery.c
+/////////////////////////////////////////////////////////////////////
+#include "graph.h"
+#include "Stack.h"
+#include "find_cycle.h"
+#include "process"
+#include "synch"
+#include "list.h"
+#include "syscall.h"
+#include "stdio.h"
+#include "stdlib.h"
+
+#define get_length(arr) (sizeof((arr)) / sizeof(arr[0]))
+struct Graph *graph;
+
+enum Type resource_type = resource;
+enum Type thread_type = thread;
+ 
+static struct thread *choose_victim(list* cycle)
+{   
+    int average = 0;
+    srand(time(0));
+    int length = get_length(cycle);
+    for (int i = 0; i < length; i++)
+    {
+        average += thread_get_by_id(cycle[i])->victimed_count;
+    }
+    int *low_victims = (int *)malloc(length * sizeof(int));
+    int *high_victims = = (int *)malloc(length * size(int));
+    int hight_count = 0;
+    int low_count = 0;
+    for (int i = 0; i < length; i++)
+    {
+        if (thread_get_by_id(cycle[i])->victimed_count > average)
+        {
+            high_victims[hight_count++] = cycle[i];
+        }
+        else
+        {
+            low_victims[low_count++] = cycle[i];
+        }
+    }
+    struct thread *victim ; 
+    int rand_num = rand()% 9 ;
+    if(rand_num > 2 || get_length(high_victims) == 0){
+        int rand_victim = rand() % low_count ;
+        victim = thread_get_by_id(low_victims[rand_victim]);
+    } else{
+        int rand_victim = rand() % hight_count ; 
+        victim = thread_get_by_id(high_victims[rand_victim]);
+    }
+    free(low_victims);
+    free(high_victims);
+    return victim;
+}
+static void recover(list* cycles)
+{
+    for(int i = 0 ; i < get_length(cycles) ; i++ )
+    {
+        struct thread *victim = choose_victim(cycles[i]);
+        victim->victimed_count = victim->victimed_count++;
+        while (!list_empty(&victim->locks))
+        {
+            struct lock *lock = list_pop_front(&victim->locks);
+            lock_release(lock, victim);
+        }
+        process_exit(victim);
+    }
+}
+static bool detect_deadlock()
+{
+    tarjan(&graph); //detect loops 
+    return graph->hasCycle;
+}
+
+static void deadlock_detection_recovery()
+{
+    bool deadlock = detect_deadlock();
+    if (deadlock)
+    {
+        recover(graph->loops);
+    }
+}
+
+static void init_deadlock_detection(){
+    graph = create_graph()
+}
+static void request_resources(int tid , int lock_id){
+    add_edge(graph , tid , lock_id , resource_type)
+}
+static void receives_resources(int tid , int lock_id){
+    delete_edge(graph, tid ,lock_id);
+    add_edge(graph , tid , lock_id , thread_type)
+}
+static void frees_resource(int tid , int lock_id){
+    delete_edge(graph, tid ,lock_id);
+}
+--------------------------------------------------------------------------
+synch.h
+/////////////////////////////////////////////////////////////////////////
+struct lock 
+  {........
+    ///////////////////OUR_CHANGE----------------------------------------------------------------------
+    int lock_id;
+    ///////////////////OUR_CHANGE----------------------------------------------------------------------
+  };
+-------------------------------------------------------------------------
+thread.h
+/////////////////////////////////////////////////////////////////////////
+struct thread
+  {........
+    ///////////////////OUR_CHANGE--------------------------------------------------------------------------------
+    int victimed_count;
+    ///////////////////OUR_CHANGE--------------------------------------------------------------------------------
+    };
+-------------------------------------------------------------------------
+timer.c
+////////////////////////////////////////////////////////////////////////
+static void timer_interrupt (struct intr_frame *args UNUSED)
+{ 
+  ///////////////////OUR_CHANGE----------------------------------------------------------------------
+  int fullInterval = 100;
+  if((ticks % fullInterval) == 0){
+     deadlock_detection_recovery();
+  }
+  ///////////////////OUR_CHANGE----------------------------------------------------------------------
+}
+------------------------------------------------------------------------
